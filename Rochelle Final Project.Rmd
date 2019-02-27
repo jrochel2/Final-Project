@@ -25,7 +25,7 @@ d
 
 ```{r data manip vis 1}
 d1<- d %>%
-  select("school_county", 96:143) %>%
+  select("school_county", 93:140) %>%
   mutate(school_county = tolower(school_county)) %>%
   rename(county = school_county) %>%
   factorize()
@@ -40,7 +40,7 @@ map <- ggplot2::map_data("county") %>%
   rename(county = subregion)
 map
 
-d1map <- left_join(d2, map)
+d1map <- left_join(map, d2)
 
 ```
 ```{r vis 1}
