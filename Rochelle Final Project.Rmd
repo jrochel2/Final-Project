@@ -15,11 +15,11 @@ library(gghighlight)
 library(colorblindr)
 library(janitor)
 library(here)
+library(zipcode)
 ```
 
 ```{r data import}
 d <- import(here("data", "school_survey.sav"), setclass = "tbl_df")
-d
 ```
 
 
@@ -32,34 +32,88 @@ d1<- d %>%
 
 d2 <- d1 %>%
   group_by(county) %>%
-  summarize(mean = mean(raw_prepare))
-d2
+  summarize(mean = mean(prepare))
+
 
 map <- ggplot2::map_data("county") %>%
   filter(region == "oregon") %>%
   rename(county = subregion)
-map
+
 
 d1map <- left_join(map, d2)
 
+d3 <- d1 %>%
+  mutate(information_assistance_n = as.numeric(information_assistance_n)) %>%
+  filter(!is.na(information_assistance_n)) %>%
+  group_by(county) %>%
+  summarize(mean = mean(information_assistance_n))
+d3
+d2map <- left_join(map, d3)
 ```
+
+
+
 ```{r vis 1}
 ggplot() + geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
   coord_fixed(1.3) + 
-  scale_fill_viridis_c() +
-  theme_minimal() +
-  labs(title = "Oregon ")
+  scale_fill_viridis_c()+
+  theme_void() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank()) +
+  labs(title = "Oregon Public Schools' Suicide Preparedness Levels", subtitle = "Average Preparedness by County", x = NULL, y = NULL, fill = "Preparedness
+       Score", caption = "*Score represents a composite preparedness rating ranging from 1-5")
+#would really like a second map that breaks it down by zipcode, I attempted with the package zipcode, but it just represents zipcodes with points not actual mapping. 
+
 ```
 
 
 ```{r vis 2}
-
-
+d1 <- d1 %>%
+  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle", "High School" = "High")) %>%
+  mutate(region_class_n = factor(region_class_n, levels = c("Urban", "Rural", "Frontier")))
+d1
 
 d1 %>%
-  ggplot(aes(region_class_n, raw_prepare)) +
-  geom_histogram() 
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, prepare, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
+  #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  facet_wrap(~region_class_n) +
+  labs(title = "School Preparedness by Region and Level", x = "School Level", y = "Preparedness Score")
   
+```
+
+
+
+```{r vis 3}
+ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  scale_fill_viridis_c() +
+ theme_void() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank()) +
+  labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", subtitle = "Average Interest by County", x = NULL, y = NULL, fill = "Interest", caption = "*Interest was measured on a 1-3 likert-type scale")
+```
+
+
+
+```{r vis 4}
+d4 <- d1 %>%
+  mutate(information_assistance_n = as.numeric(information_assistance_n)) 
+
+d4 %>%
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, information_assistance_n, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
+  #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  facet_wrap(~region_class_n) +
+  labs(title = "Interest in Receiving Support", x = "School Level", y = "Interest", caption = "Interest measured on a 1-3 likert-type rating scale")
 ```
 
 
