@@ -66,6 +66,12 @@ ggplot() + geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = 
 
 ```
 
+Great plot! I had used a lot of bulky code to get ride of my axes and totally forgot that this can be done in a simpler way using theme(axis.text.x = element_blank(),axis.text.y = element_blank()). and x = NULL, y = NULL. Overall, I'm impressed by your use in mapping data to the counties in Oregon!
+
+Suggestions:
+(1) For people not from Oregon, it might be nice to note the extreme counties (low and high) by name using geom_text,etc.
+(2) I was curious exactly what you are measuring with suicide preparedness levels. A note about what that means in the caption describing the composite score might be helpful.
+
 
 ```{r vis 2}
 d1 <- d1 %>%
@@ -85,7 +91,11 @@ d1 %>%
   labs(title = "School Preparedness by Region and Level", x = "School Level", y = "Preparedness Score")
   
 ```
+I think this plot does a great job at showing how preparedness increases as people get farther along in the school system for urban and rural communities, but that there is actually a decrease in frontier communities. You're plot is also very clear in showing there is a decrease in preparedness from urban to rural communities and then from rural to frontier. I also really like the colors you chose!
 
+Suggestions:
+(1) Is this still referring to the same "preparedness" variable as the last plot and the same data? Would be helpful to maybe make your title more specific and/or maybe add a descriptive subtitle (and also mention that this is Oregon again). This applies to the following plots as well.
+(2) Along the same lines, what is "Frontier" referring to? I'm assuming rural areas near the mountains, but I'm suprised that's a different group.
 
 
 ```{r vis 3}
@@ -97,6 +107,12 @@ ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = 
         axis.text.y = element_blank()) +
   labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", subtitle = "Average Interest by County", x = NULL, y = NULL, fill = "Interest", caption = "*Interest was measured on a 1-3 likert-type scale")
 ```
+
+Interesting that the cities along the I-5 aren't the highest in being interested to receive support! As with the last plot about the state, I think this does a good job of displaying the data and I'm impressed by your plot. Good job!
+
+Suggestions:
+(1) I wonder if it would be helpful to clearly define the county borders with white (same in your other plot), since a lot of the colors side by side are very similar and sometimes it is difficult to see where one stops and the other starts. Labels of high/low counties might also help.
+(2) Might be helpful to pull people's attention to the highest and lowest counties also, since there is a lot of variation going on in this map.
 
 
 
@@ -116,7 +132,12 @@ d4 %>%
   labs(title = "Interest in Receiving Support", x = "School Level", y = "Interest", caption = "Interest measured on a 1-3 likert-type rating scale")
 ```
 
+I like that you maintained the same colors for the different regions in this plot as you did in the second plot! Again, I do think it shows the distinctive differences between regions and age groups in receiving support for their students. I'm surprised urban high schools have less interest than rural and frontier schools.
 
+Suggestions:
+(1) My same suggestions about specific title of what is being assessed and if this is about Oregon again applies to this plot.
+
+Overall, very good job and interesting project!
 
 
 
