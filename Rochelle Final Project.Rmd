@@ -16,10 +16,13 @@ library(colorblindr)
 library(janitor)
 library(here)
 library(zipcode)
+#install.packages('zipcode')
+#ST needed to install zipcode package first
 ```
 
 ```{r data import}
-d <- import(here("data", "school_survey.sav"), setclass = "tbl_df")
+d <- import(here("data", "school_survey.sav"), 
+            setclass = "tbl_df") # %>%  characterize()
 ```
 
 
@@ -28,7 +31,7 @@ d1<- d %>%
   select("school_county", 93:140) %>%
   mutate(school_county = tolower(school_county)) %>%
   rename(county = school_county) %>%
-  factorize()
+  factorize() #ST I'm not sure what factorize does, but you can pass you import directly to characterize() since it is a sav file and it should import the same properites from spss (see comment above)
 
 d2 <- d1 %>%
   group_by(county) %>%
@@ -37,14 +40,14 @@ d2 <- d1 %>%
 
 map <- ggplot2::map_data("county") %>%
   filter(region == "oregon") %>%
-  rename(county = subregion)
+  rename(county = subregion) #ST it seems like this is renamed twice, maybe only 1 is needed? 
 
 
 d1map <- left_join(map, d2)
 
 d3 <- d1 %>%
   mutate(information_assistance_n = as.numeric(information_assistance_n)) %>%
-  filter(!is.na(information_assistance_n)) %>%
+  filter(!is.na(information_assistance_n)) %>% #ST I've been trying to figure out how to do this - thank you for the help!
   group_by(county) %>%
   summarize(mean = mean(information_assistance_n))
 d3
@@ -54,38 +57,81 @@ d2map <- left_join(map, d3)
 
 
 ```{r vis 1}
-ggplot() + geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
+ggplot() + 
+  geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
   coord_fixed(1.3) + 
-  scale_fill_viridis_c()+
+  scale_fill_viridis_c()+ #ST personally, I think the magma option is easier to read
   theme_void() +
-  theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank()) +
-  labs(title = "Oregon Public Schools' Suicide Preparedness Levels", subtitle = "Average Preparedness by County", x = NULL, y = NULL, fill = "Preparedness
-       Score", caption = "*Score represents a composite preparedness rating ranging from 1-5")
+  theme(plot.caption = element_text(hjust = 0), #ST moving caption over
+        axis.text = element_blank()) + #ST combined for less code
+  labs(title = "Oregon Public Schools' Suicide Preparedness Levels", 
+       subtitle = "Average Preparedness by County", x = NULL, y = NULL, 
+       fill = "Preparedness
+       Score*", 
+       caption = "*Score represents a composite preparedness rating ranging from 1-5")
 #would really like a second map that breaks it down by zipcode, I attempted with the package zipcode, but it just represents zipcodes with points not actual mapping. 
+
+#ST Love this plot!!
 
 ```
 
 
 ```{r vis 2}
 d1 <- d1 %>%
-  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle", "High School" = "High")) %>%
-  mutate(region_class_n = factor(region_class_n, levels = c("Urban", "Rural", "Frontier")))
+  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle",
+                                               "High School" = "High"),
+         region_class_n = factor(region_class_n, 
+                                 levels = c("Urban", "Rural", "Frontier"))) #ST combined into 1 mutate function
 d1
 
 d1 %>%
-  filter(!is.na(school_type_n)) %>%
+  filter(!is.na(school_type_n)) %>% 
   ggplot(aes(school_type_n, prepare, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  #ST I also like the additional color!
   theme_minimal() +
   theme(legend.position = "none") +
   scale_fill_viridis_d() +
-  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) + #ST I haven't seen stat = "summary" used before. Does this plot the mean? - Great Job! I will be using this in the future.
   #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
   facet_wrap(~region_class_n) +
-  labs(title = "School Preparedness by Region and Level", x = "School Level", y = "Preparedness Score")
+  labs(title = "School Preparedness by Region and Level", 
+       x = "School Level", 
+       y = "Preparedness Score")
+
+#ST I would consider changing some theme elements, such as making facet titles and axes text larger
   
 ```
 
+```{r ST_error_bar}
+d1 <- d1 %>%
+  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle",
+                                               "High School" = "High"),
+         region_class_n = factor(region_class_n, 
+                                 levels = c("Urban", "Rural", "Frontier"))) %>% #ST combined into 1 mutate function 
+  filter(!is.na(school_type_n))
+
+d1_sum <- d1 %>% 
+  group_by(region_class_n, school_type_n) %>% 
+  summarize(mean = mean(prepare, na.rm = TRUE),
+            n = length(prepare),
+            sd = sd(prepare, na.rm = TRUE),
+            se = sd / sqrt(n), na.rm = TRUE)
+
+ggplot() + 
+  geom_bar(data = d1, aes(school_type_n, prepare, fill = region_class_n), stat = "summary", fun.y = "mean", alpha = 0.7) + 
+  geom_errorbar(data = d1_sum, aes(ymin = mean + qnorm(.025)*se,
+                                   ymax = mean + qnorm(.975)*se,
+                                   x = school_type_n), width=0.2, size=1, color="blue") +
+  facet_wrap(~region_class_n) +
+  labs(title = "School Preparedness by Region and Level", 
+       x = "School Level", 
+       y = "Preparedness Score") + 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() 
+#ST not sure why there is still NAN values, but this code should work for errorbars
+
+```
 
 
 ```{r vis 3}
@@ -94,8 +140,15 @@ ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = 
   scale_fill_viridis_c() +
  theme_void() +
   theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank()) +
-  labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", subtitle = "Average Interest by County", x = NULL, y = NULL, fill = "Interest", caption = "*Interest was measured on a 1-3 likert-type scale")
+        axis.text.y = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", 
+       subtitle = "Average Interest by County", 
+       x = NULL, 
+       y = NULL, 
+       fill = "Interest*", #ST added * to reference caption
+       caption = "*Interest was measured on a 1-3 likert-type scale")
+#ST I love these plots - They look great!
 ```
 
 
@@ -112,8 +165,12 @@ d4 %>%
   scale_fill_viridis_d() +
   geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
   #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  #ST you should be able to use the same code as above for the error bars here
   facet_wrap(~region_class_n) +
-  labs(title = "Interest in Receiving Support", x = "School Level", y = "Interest", caption = "Interest measured on a 1-3 likert-type rating scale")
+  labs(title = "Interest in Receiving Support", 
+       x = "School Level", 
+       y = "Interest", 
+       caption = "Interest measured on a 1-3 likert-type rating scale")
 ```
 
 
