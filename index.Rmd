@@ -16,6 +16,8 @@ library(colorblindr)
 library(janitor)
 library(here)
 library(zipcode)
+library(ggrepel)
+library(viridis)
 #install.packages('zipcode')
 #ST needed to install zipcode package first
 ```
@@ -51,38 +53,95 @@ d3 <- d1 %>%
   group_by(county) %>%
   summarize(mean = mean(information_assistance_n))
 d2map <- left_join(map, d3)
+d1 <- d1 %>%
+  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle",
+                                               "High School" = "High"),
+         region_class_n = factor(region_class_n, 
+                                 levels = c("Urban", "Rural", "Frontier")))
+
+d4 <- d1 %>%
+  mutate(information_assistance_n = as.numeric(information_assistance_n)) 
 ```
 
-
-
-# Preparedeness {data-icon="fa-biohazard"}
+# The Genesis
 
 Row {data-width=450}
 -----------------------------------------------------------------------
 
-### Chart A
+### State Map
 
 ```{r}
+ggplot() + geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  labs(title = "Oregon Preparedness Scores")
+```
+
+### Bar Graph
+
+```{r}
+d1 %>%
+  filter(!is.na(school_type_n)) %>% 
+  ggplot(aes(school_type_n, prepare)) + 
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7)
+```
+
+Row {data-width=450}
+-----------------------------------------------------------------------
+
+### State Map
+
+
+```{r vis 3 draft 1}
+ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  labs(title = "Oregon Interest Level")
+```
+
+### Bar Graph
+
+```{r vis 4 draft 1}
+
+d4 %>%
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, information_assistance_n, fill = region_class_n)) + 
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7, position = "dodge") +
+  labs(title = "Interest in Receiving Support")
+
+
+```
+
+> *The data that I used for this portfolio was collected during a statewide survey of all 1,251 Oregon public schools. The survey gathered information on suicide prevention activities at each school site. Although the response rate was moderate, with 403 schools responding, the data that was collected helps provide a glimpse into the general landscape of suicide prevention in schools across the state.  
+
+# The Overview
+
+Row {data-width=450}
+-----------------------------------------------------------------------
+
+### State Map
+
+```{r}
+cnames <- aggregate(cbind(long, lat) ~ county, data=d1map, FUN=function(x)mean(range(x))) %>%
+   mutate(county = str_to_title(county))
+  
+
 ggplot() + 
   geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
   coord_fixed(1.3) + 
-  scale_fill_viridis_c()+ #ST personally, I think the magma option is easier to read
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
+  scale_fill_viridis_c() + #ST personally, I think the magma option is easier to read
   theme_void() +
   theme(plot.caption = element_text(hjust = 0), #ST moving caption over
-        axis.text = element_blank()) + #ST combined for less code
+        axis.text = element_blank()) + 
   labs(title = "Oregon Public Schools' Suicide Preparedness Levels", 
        subtitle = "Average Preparedness by County", x = NULL, y = NULL, 
        fill = "Preparedness
        Score*", 
-       caption = "*Score represents a composite preparedness rating ranging from 1-5")
+       caption = "*Score represents a composite preparedness rating ranging from 0-5") 
 ```
 
-> I am the man.......
-
-Row {data-width=350}
------------------------------------------------------------------------
-
-### Chart B
+### Bar Graph
 
 ```{r}
 d1 %>%
@@ -101,51 +160,16 @@ d1 %>%
 ```
 
 
-# Interest {data-icon="fa-calendar"}
-
-Row {data-width=350}
+Row {data-width=650}
 -----------------------------------------------------------------------
 
-### Chart C
+### State Map
 
 ```{r}
-d1 <- d1 %>%
-  mutate(school_type_n = recode(school_type_n, "Middle School" = "Middle",
-                                               "High School" = "High"),
-         region_class_n = factor(region_class_n, 
-                                 levels = c("Urban", "Rural", "Frontier"))) %>% #ST combined into 1 mutate function 
-  filter(!is.na(school_type_n))
-
-d1_sum <- d1 %>% 
-  group_by(region_class_n, school_type_n) %>% 
-  summarize(mean = mean(prepare, na.rm = TRUE),
-            n = length(prepare),
-            sd = sd(prepare, na.rm = TRUE),
-            se = sd / sqrt(n), na.rm = TRUE)
-
-ggplot() + 
-  geom_bar(data = d1, aes(school_type_n, prepare, fill = region_class_n), stat = "summary", fun.y = "mean", alpha = 0.7) + 
-  geom_errorbar(data = d1_sum, aes(ymin = mean + qnorm(.025)*se,
-                                   ymax = mean + qnorm(.975)*se,
-                                   x = school_type_n), width=0.2, size=1, color="blue") +
-  facet_wrap(~region_class_n) +
-  labs(title = "School Preparedness by Region and Level", 
-       x = "School Level", 
-       y = "Preparedness Score") + 
-  theme_minimal() +
-  theme(legend.position = "none") +
-  scale_fill_viridis_d() 
-#ST not sure why there is still NAN values, but this code should work for errorbars
-
-```
-
-
-### Chart D
-
-```{r vis 3}
 ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
   coord_fixed(1.3) + 
   scale_fill_viridis_c() +
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
  theme_void() +
   theme(axis.text.x = element_blank(),
         axis.text.y = element_blank(),
@@ -155,26 +179,131 @@ ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = 
        x = NULL, 
        y = NULL, 
        fill = "Interest*", #ST added * to reference caption
-       caption = "*Interest was measured on a 1-3 likert-type scale")
-#ST I love these plots - They look great!
+       caption = "*Interest was measured on a 0-3 likert-type scale") 
+
 ```
 
-
-Row {data-width=350}
------------------------------------------------------------------------
-### plot 4
+### Bar Graph
 
 ```{r}
+
+
+d4 %>%
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, information_assistance_n, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
+  #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  #ST you should be able to use the same code as above for the error bars here
+  facet_wrap(~region_class_n) +
+  labs(title = "Interest in Receiving Support", 
+       x = "School Level", 
+       y = "Interest", 
+       caption = "Interest measured on a 1-3 likert-type rating scale")
+```
+
+# Preparedness 1
+
+Row {data-width=650}
+-----------------------------------------------------------------------
+
+### State Map
+
+```{r}
+cnames <- aggregate(cbind(long, lat) ~ county, data=d1map, FUN=function(x)mean(range(x))) %>%
+   mutate(county = str_to_title(county))
+  
+
 ggplot() + 
   geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
   coord_fixed(1.3) + 
-  scale_fill_viridis_c()+ #ST personally, I think the magma option is easier to read
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
+  scale_fill_viridis_c() + #ST personally, I think the magma option is easier to read
   theme_void() +
   theme(plot.caption = element_text(hjust = 0), #ST moving caption over
-        axis.text = element_blank()) + #ST combined for less code
+        axis.text = element_blank()) + 
   labs(title = "Oregon Public Schools' Suicide Preparedness Levels", 
        subtitle = "Average Preparedness by County", x = NULL, y = NULL, 
        fill = "Preparedness
        Score*", 
-       caption = "*Score represents a composite preparedness rating ranging from 1-5")
+       caption = "*Score represents a composite preparedness rating ranging from 0-5") 
 ```
+
+> This is the graph where it all started. I naturally have an affinity for all maps geographical and knew that whatever my portfolio entailed, it would most definitely include a “geom_polygon.” I started by creating a “preparedness composite score” that entailed scoring schools (0 = No, 1 = Yes) on the following five factors: (a) Postvention Plan, (b) EBP, (c) Memorandum of Understanding, (d) Identify and Refer Protocol, and (e) supplementary activities. Once the composite score was created, I to calculated the average for each county and then merged it with the map data. All of that was pretty straightforward. I have actually been surprised how (relatively) easy it has been working with maps, even in spite of them seeming intimidating. Once the data was merged and plotted, I ran into several obstacles. The first was a color scale that helped tell the story. I decided to go with viridis_c because of the Oregon green theme, although I agree with one of my reviewers that magma was clearer. The two other major issues that I battled with were (a) labels for the counties and (b) borders for the counties. For labels, I decided to finally go with label vs text and also incorporate the repel function. Without the use of repel, the county text is much more centered; however, the overlapping was way too messy. I am not completely sold on the labels vs plain text, but in terms of pure readability, it works much better. I am interested in whether you think that I should use county labels at all. They are distracting but practical. I also spent several hours trying to get the borders to come in as grey, but kept getting an error about continuous variables being needed. I had basically just added the same geom_polygon layer but had “fill = NA.” It did not work. This map will be shared with both lay people (our state agency clients and schools) and researchers (at a presentation at SPR). I am wondering whether the audience would change anything major for how a geom_polygon map is presented. Overall, I am happy with it, but will be interested to hear what you think. The more advice the better! 
+
+# Preparedness 2
+
+
+### Bar Graph
+
+```{r}
+d1 %>%
+  filter(!is.na(school_type_n)) %>% 
+  ggplot(aes(school_type_n, prepare, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  #ST I also like the additional color!
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) + #ST I haven't seen stat = "summary" used before. Does this plot the mean? - Great Job! I will be using this in the future.
+  #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  facet_wrap(~region_class_n) +
+  labs(title = "School Preparedness by Region and Level", 
+       x = "School Level", 
+       y = "Preparedness Score")
+```
+
+> For this second plot, I decided that the map visualization needed to be complimented by some sort of graph that broke down the group differences between school levels and regions. I thought this bar graph did a fairly good job of telling that story. You can clearly see that urban schools at each level just barely outperform their rural counterparts at each level. Frontier schools stand on their own. One of the major issues I have with this graph and with the portfolio in general is that it does not show the distribution of responses across the levels and regions. There is only one middle school that responded from a frontier region, and that is an issue. I think my next step will be to create an introductory dashboard that gives a breakdown of responses by these different characteristics. Another issue I struggled with was whether to use error bars. If I use this on my SPR poster, then I definitely will, but for now I have been sharing these with practitioners and think that the error bars don’t translate well into practice; however, feel free to disagree! In summary, I think this graph is a good compliment to the map, but would love any feedback! 
+
+# Interest 1
+
+### State Map
+
+```{r}
+ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  scale_fill_viridis_c() +
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
+ theme_void() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", 
+       subtitle = "Average Interest by County", 
+       x = NULL, 
+       y = NULL, 
+       fill = "Interest*", #ST added * to reference caption
+       caption = "*Interest was measured on a 0-3 likert-type scale") 
+
+```
+
+
+> The second map graph is similar to the first visualization, which I actually think is a strength because it allows the viewer to compare the level of preparedness to the level of interest a school has in receiving support. One challenge that I had with this plot in particular was that originally when I was using geom_text, I could not find a fond that was clearly visible in both the lighter yellow regions and the darker purple regions. Do you have a solution for this? That was one of the major reasons that I went with the label over text choice. Again, I could not get the border to come in, which is a pretty major issue for the huge purple blob of Harney, Grant, and Malheur counties. 
+
+# Interest 2 
+
+### Bar Graph
+
+```{r}
+d4 <- d1 %>%
+  mutate(information_assistance_n = as.numeric(information_assistance_n)) 
+
+d4 %>%
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, information_assistance_n, fill = region_class_n)) + #I like the additional aesthetic of fill by region class, but can be dissuaded if it is distracting. 
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7) +
+  #geom_errorbar(aes(school_type_n, ymin = prepare - sd, ymax = prepare + sd), width=0.2, size=1, color="blue") +
+  #ST you should be able to use the same code as above for the error bars here
+  facet_wrap(~region_class_n) +
+  labs(title = "Interest in Receiving Support", 
+       x = "School Level", 
+       y = "Interest", 
+       caption = "Interest measured on a 1-3 likert-type rating scale")
+```
+
+> For the final graph, I kept the same formula as before, which again allows for easy comparison to the preparedness graph. One of the reviewers brought up an issue that I was not able to address, but am not sure how much of a problem it is. Because my interest ratings are averages, I did not have any regions score below a 2 on the 0-3 scale. My caption states that the scale is 0-3, but then the legend only goes to 2. I played around for a while to see if I could get the legend scale to expand, which I could not. But I also think that it is not that much of an issue, since the legend represents what scores were actually recorded. Thoughts? I had also messed around with changing all of the scores into categorical variables ranged from low, medium, and up to high, but thought that the continuous scale of Viridis just looks better (and is more accurate). I could easily be talked into changing it though. 
+

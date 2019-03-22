@@ -16,6 +16,8 @@ library(colorblindr)
 library(janitor)
 library(here)
 library(zipcode)
+library(viridis)
+library(ggrepel)
 #install.packages('zipcode')
 #ST needed to install zipcode package first
 ```
@@ -31,7 +33,7 @@ d1<- d %>%
   select("school_county", 93:140) %>%
   mutate(school_county = tolower(school_county)) %>%
   rename(county = school_county) %>%
-  factorize() #ST I'm not sure what factorize does, but you can pass you import directly to characterize() since it is a sav file and it should import the same properites from spss (see comment above)
+  factorize() 
 
 d2 <- d1 %>%
   group_by(county) %>%
@@ -40,19 +42,66 @@ d2 <- d1 %>%
 
 map <- ggplot2::map_data("county") %>%
   filter(region == "oregon") %>%
-  rename(county = subregion) #ST it seems like this is renamed twice, maybe only 1 is needed? 
+  rename(county = subregion) 
 
+d1 %>%
+  group_by(region_class_n, school_type_n) %>%
+  count()
 
 d1map <- left_join(map, d2)
 
 d3 <- d1 %>%
   mutate(information_assistance_n = as.numeric(information_assistance_n)) %>%
-  filter(!is.na(information_assistance_n)) %>% #ST I've been trying to figure out how to do this - thank you for the help!
+  filter(!is.na(information_assistance_n)) %>% 
   group_by(county) %>%
   summarize(mean = mean(information_assistance_n))
-d3
+
 d2map <- left_join(map, d3)
+
+d4 <- d1 %>%
+  mutate(information_assistance_n = as.numeric(information_assistance_n)) 
 ```
+
+## Overview
+The data that I used for this portfolio was collected during a statewide survey of all 1,251 Oregon public schools. The survey gathered information on suicide prevention activities at each school site. Although the response rate was moderate, with 403 schools responding, the data that was collected helps provide a glimpse into the general landscape of suicide prevention in schools across the state.  
+
+
+```{r}
+ggplot() + geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  labs(title = "Oregon Preparedness Scores")
+```
+
+
+
+```{r}
+d1 %>%
+  filter(!is.na(school_type_n)) %>% 
+  ggplot(aes(school_type_n, prepare)) + 
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7)
+```
+
+
+
+```{r vis 3 draft 1}
+ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  labs(title = "Oregon Interest Level")
+```
+
+```{r vis 4 draft 1}
+
+d4 %>%
+  filter(!is.na(school_type_n)) %>%
+  ggplot(aes(school_type_n, information_assistance_n, fill = region_class_n)) + 
+  geom_bar(stat = "summary", fun.y = "mean", alpha = 0.7, position = "dodge") +
+  labs(title = "Interest in Receiving Support")
+
+
+```
+
 
 
 
@@ -63,18 +112,20 @@ ggplot() +
   scale_fill_viridis_c()+ #ST personally, I think the magma option is easier to read
   theme_void() +
   theme(plot.caption = element_text(hjust = 0), #ST moving caption over
-        axis.text = element_blank()) + #ST combined for less code
+        axis.text = element_blank()) + 
   labs(title = "Oregon Public Schools' Suicide Preparedness Levels", 
        subtitle = "Average Preparedness by County", x = NULL, y = NULL, 
        fill = "Preparedness
        Score*", 
-       caption = "*Score represents a composite preparedness rating ranging from 1-5")
-#would really like a second map that breaks it down by zipcode, I attempted with the package zipcode, but it just represents zipcodes with points not actual mapping. 
+       caption = "*Score represents a composite preparedness rating ranging from 0-5")
+
 
 #ST Love this plot!!
 
 ```
 
+## Visualization #2
+For this second plot, I decided that the map visualization needed to be complimented by some sort of graph that broke down the group differences between school levels and regions. I thought this bar graph did a fairly good job of telling that story. You can clearly see that urban schools at each level just barely outperform their rural counterparts at each level. Frontier schools stand on their own. One of the major issues I have with this graph and with the portfolio in general is that it does not show the distribution of responses across the levels and regions. There is only one middle school that responded from a frontier region, and that is an issue. I think my next step will be to create an introductory dashboard that gives a breakdown of responses by these different characteristics. Another issue I struggled with was whether to use error bars. If I use this on my SPR poster, then I definitely will, but for now I have been sharing these with practitioners and think that the error bars don’t translate well into practice; however, feel free to disagree! In summary, I think this graph is a good compliment to the map, but would love any feedback! 
 
 ```{r vis 2}
 d1 <- d1 %>%
@@ -147,11 +198,12 @@ ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = 
        x = NULL, 
        y = NULL, 
        fill = "Interest*", #ST added * to reference caption
-       caption = "*Interest was measured on a 1-3 likert-type scale")
+       caption = "*Interest was measured on a 0-3 likert-type scale")
 #ST I love these plots - They look great!
 ```
 
-
+## Visualization 4
+For the final graph, I kept the same formula as before, which again allows for easy comparison to the preparedness graph. One of the reviewers brought up an issue that I was not able to address, but am not sure how much of a problem it is. Because my interest ratings are averages, I did not have any regions score below a 2 on the 0-3 scale. My caption states that the scale is 0-3, but then the legend only goes to 2. I played around for a while to see if I could get the legend scale to expand, which I could not. But I also think that it is not that much of an issue, since the legend represents what scores were actually recorded. Thoughts? I had also messed around with changing all of the scores into categorical variables ranged from low, medium, and up to high, but thought that the continuous scale of Viridis just looks better (and is more accurate). I could easily be talked into changing it though. 
 
 ```{r vis 4}
 d4 <- d1 %>%
@@ -171,9 +223,59 @@ d4 %>%
        x = "School Level", 
        y = "Interest", 
        caption = "Interest measured on a 1-3 likert-type rating scale")
+
+
 ```
 
+## Visualization #1
+This is the graph where it all started. I naturally have an affinity for all maps geographical and knew that whatever my portfolio entailed, it would most definitely include a “geom_polygon.” I started by creating a “preparedness composite score” that entailed scoring schools (0 = No, 1 = Yes) on the following five factors: (a) Postvention Plan, (b) EBP, (c) Memorandum of Understanding, (d) Identify and Refer Protocol, and (e) supplementary activities. Once the composite score was created, I to calculated the average for each county and then merged it with the map data. All of that was pretty straightforward. I have actually been surprised how (relatively) easy it has been working with maps, even in spite of them seeming intimidating. Once the data was merged and plotted, I ran into several obstacles. The first was a color scale that helped tell the story. I decided to go with viridis_c because of the Oregon green theme, although I agree with one of my reviewers that magma was clearer. The two other major issues that I battled with were (a) labels for the counties and (b) borders for the counties. For labels, I decided to finally go with label vs text and also incorporate the repel function. Without the use of repel, the county text is much more centered; however, the overlapping was way too messy. I am not completely sold on the labels vs plain text, but in terms of pure readability, it works much better. I am interested in whether you think that I should use county labels at all. They are distracting but practical. I also spent several hours trying to get the borders to come in as grey, but kept getting an error about continuous variables being needed. I had basically just added the same geom_polygon layer but had “fill = NA.” It did not work. This map will be shared with both lay people (our state agency clients and schools) and researchers (at a presentation at SPR). I am wondering whether the audience would change anything major for how a geom_polygon map is presented. Overall, I am happy with it, but will be interested to hear what you think. The more advice the better! 
+
+
+```{r vis 1_1}
+cnames <- aggregate(cbind(long, lat) ~ county, data=d1map, FUN=function(x)mean(range(x))) %>%
+   mutate(county = str_to_title(county))
+  
+cnames
+ggplot() + 
+  geom_polygon(data = d1map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
+  scale_fill_viridis_c() + #ST personally, I think the magma option is easier to read
+  theme_void() +
+  theme(plot.caption = element_text(hjust = 0), #ST moving caption over
+        axis.text = element_blank()) + 
+  labs(title = "Oregon Public Schools' Suicide Preparedness Levels", 
+       subtitle = "Average Preparedness by County", x = NULL, y = NULL, 
+       fill = "Preparedness
+       Score*", 
+       caption = "*Score represents a composite preparedness rating ranging from 0-5") 
+   
+  
 
 
 
+```
+
+## Visualization 3
+The second map graph is similar to the first visualization, which I actually think is a strength because it allows the viewer to compare the level of preparedness to the level of interest a school has in receiving support. One challenge that I had with this plot in particular was that originally when I was using geom_text, I could not find a fond that was clearly visible in both the lighter yellow regions and the darker purple regions. Do you have a solution for this? That was one of the major reasons that I went with the label over text choice. Again, I could not get the border to come in, which is a pretty major issue for the huge purple blob of Harney, Grant, and Malheur counties. 
+
+
+```{r vis 3_1}
+ggplot() + geom_polygon(data = d2map, aes(x=long, y = lat, fill = mean, group = group)) + 
+  coord_fixed(1.3) + 
+  scale_fill_viridis_c() +
+  geom_label_repel(data =cnames, aes(long, lat, label = county), size = 2, color = "grey1") +
+ theme_void() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        plot.caption = element_text(hjust = 0)) +
+  labs(title = "Oregon Public Schools' Level of Interest in Recieving Support", 
+       subtitle = "Average Interest by County", 
+       x = NULL, 
+       y = NULL, 
+       fill = "Interest*", #ST added * to reference caption
+       caption = "*Interest was measured on a 0-3 likert-type scale") 
+
+#ST I love these plots - They look great!
+```
 
